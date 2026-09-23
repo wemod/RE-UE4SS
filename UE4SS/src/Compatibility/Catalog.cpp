@@ -57,6 +57,16 @@ namespace RC::Compatibility
             }
             // Version-specific layouts must not fall back to a different build's tables.
             if (pinned_executable) return {};
+            // Satisfactory's internal executable names do not contain the profile name.
+            for (const auto alias : {"FactoryGameSteam-Win64-Shipping.exe", "FactoryGameEGS-Win64-Shipping.exe", "FactoryGame-Win64-Shipping.exe"})
+            {
+                if (!equal_ascii(executable, alias)) continue;
+                for (const auto& resource : resources)
+                {
+                    if (resource.profile == "Satisfactory") return resource.profile;
+                }
+                return {};
+            }
             if (executable.size() < 4 || !equal_ascii(executable.substr(executable.size() - 4), ".exe")) return {};
             executable.remove_suffix(4);
             constexpr std::string_view shipping = "-Win64-Shipping";

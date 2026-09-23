@@ -413,6 +413,7 @@ namespace RC
 
         try
         {
+            Output::send(STR("UE4SS initialization started\n"));
             setup_unreal();
 
             Output::send(STR("Unreal Engine modules ({}):\n"), SigScannerStaticData::m_is_modular ? STR("modular") : STR("non-modular"));
@@ -433,6 +434,7 @@ namespace RC
             UAssetRegistry::SetMaxMemoryUsageDuringAssetLoading(settings_manager.Memory.MaxMemoryUsageDuringAssetLoading);
 
             share_lua_functions();
+            Output::send(STR("UE4SS initialization complete\n"));
 
             // Only deal with the event loop thread here if the 'Test' constructor doesn't need to be called
 #ifndef RUN_TESTS
@@ -448,6 +450,7 @@ namespace RC
         }
         catch (std::runtime_error& e)
         {
+            Output::send<LogLevel::Error>(STR("UE4SS initialization failed: {}\n"), ensure_str(e.what()));
             // Returns to main from here which checks, displays & handles whether to close the program or not
             // If has_error() returns false that means that set_error was not called
             // In that case we need to copy the exception message to the error buffer before we return to main

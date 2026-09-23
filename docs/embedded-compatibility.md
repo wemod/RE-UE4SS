@@ -19,7 +19,9 @@ recognizes executable basenames that match a complete embedded game profile name
 ignoring case, spaces, and punctuation, with an optional `-Win64-Shipping` suffix.
 For example, `AbioticFactor-Win64-Shipping.exe` selects `Abiotic Factor` automatically.
 Names must match completely; partial matches and ambiguous names are rejected.
-Games with unrelated internal executable names are not yet recognized by this rule.
+Explicit aliases also select `Satisfactory` for `FactoryGameSteam-Win64-Shipping.exe`,
+`FactoryGameEGS-Win64-Shipping.exe`, and `FactoryGame-Win64-Shipping.exe` (ignoring case).
+Other unrelated internal executable names are not recognized by this rule.
 Unknown games retain stock discovery.
 
 Exact executable/SHA-256 entries in `assets/CustomGameConfigs/validated-builds.json`
@@ -27,7 +29,7 @@ take priority. If an executable has such entries, an unknown build does not fall
 back to name matching. Only these version-specific candidates require hashing.
 The initial exact-build manifest is empty. Automatic name recognition selects the
 bundled upstream tables; it does not establish that those tables work with every
-game update. Abiotic Factor still needs an in-game test.
+game update. Abiotic Factor and Satisfactory still need in-game tests.
 
 For troubleshooting only, `[Compatibility] Profile` in UE4SS-settings.ini or
 `UE4SS_COMPATIBILITY_PROFILE` can select a specific profile. The environment wins;
@@ -48,6 +50,10 @@ scripts keep upstream's execution semantics; empty scripts are invalid.
 The external legacy `FMemory_Free.lua` alias also takes precedence over an
 embedded `GMalloc.lua`. Logs name the selected embedded profile and each
 embedded signature that executes.
+
+Initialization logs emit `UE4SS initialization started`, `UE4SS initialization complete`,
+or `UE4SS initialization failed: <reason>` so consumers can distinguish an ongoing
+scan from a terminal failure without requiring a responsive mod transport.
 
 ## Verification
 

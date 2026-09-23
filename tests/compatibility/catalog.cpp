@@ -30,6 +30,14 @@ auto main(int argc, char** argv) -> int
         require(!catalog.find(profile, "UE4SS-settings.ini"), "Missing resources must not be invented");
         require(!catalog.find(profile, "../Atomic Heart/MemberVariableLayout.ini"), "Profile isolation failed");
         require(catalog.select("None", {}, {}).empty(), "Disable failed");
+        for (const auto executable : {"FactoryGameSteam-Win64-Shipping.exe", "factorygameegs-win64-shipping.EXE", "FactoryGame-Win64-Shipping.exe"})
+        {
+            require(catalog.select("Auto", executable, {}) == "Satisfactory", "Satisfactory alias did not match");
+            require(catalog.select("None", executable, {}).empty(), "Alias ignored disabled profiles");
+            require(catalog.select("Abiotic Factor", executable, {}) == profile, "Alias ignored explicit profile");
+        }
+        require(catalog.select("Auto", "NotFactoryGameSteam-Win64-Shipping.exe", {}).empty(), "Partial alias matched");
+        require(catalog.find("Satisfactory", "UE4SS_Signatures/GUObjectArray.lua"), "Satisfactory lookup rules missing");
         require(catalog.select("Auto", "Unknown.exe", "unknown").empty(), "Unknown game matched");
         require(catalog.select("Auto", "AbioticFactor-Win64-Shipping.exe", {}) == profile, "Automatic shipping executable selection failed");
         require(catalog.select("", "abioticfactor.exe", {}) == profile, "Automatic plain executable selection failed");
@@ -51,6 +59,10 @@ auto main(int argc, char** argv) -> int
         constexpr std::string_view digest = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
         const std::array builds{Build{"AbioticFactor-Win64-Shipping.exe", digest, "Abiotic Factor"}};
         const Catalog validated{catalog.resources, builds};
+        const std::array satisfactory_builds{Build{"FactoryGameSteam-Win64-Shipping.exe", digest, "Satisfactory"}};
+        const Catalog satisfactory_validated{catalog.resources, satisfactory_builds};
+        require(satisfactory_validated.select("Auto", satisfactory_builds[0].executable, digest) == "Satisfactory", "Pinned alias did not match");
+        require(satisfactory_validated.select("Auto", satisfactory_builds[0].executable, "new-build").empty(), "Alias bypassed build pinning");
         require(validated.needs_fingerprint("abioticfactor-win64-shipping.exe"), "Executable comparison should ignore case");
         require(!validated.needs_fingerprint("Other.exe"), "Unrelated executable should not need hashing");
         require(validated.select("Auto", "ABIOTICFACTOR-WIN64-SHIPPING.EXE", digest) == profile, "Known build did not match");

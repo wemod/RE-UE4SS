@@ -61,6 +61,12 @@ auto main() -> int
         require(compatibility::read_override(layout)->empty(), "Empty external layout did not suppress builtin");
         std::filesystem::remove(layout);
 
+        compatibility::initialize(root / "FactoryGameSteam-Win64-Shipping.exe", root, settings);
+        require(compatibility::selected_profile() == "Satisfactory", "Satisfactory automatic selection failed");
+        require(compatibility::profile_settings().has_value(), "Satisfactory settings unavailable");
+        require(compatibility::has_override(root / "UE4SS_Signatures/GUObjectArray.lua"), "Satisfactory module lookup unavailable");
+        require(std::filesystem::is_empty(root), "Satisfactory lookup extracted files to disk");
+
         _putenv_s("UE4SS_COMPATIBILITY_PROFILE", "The Quarry");
         compatibility::initialize(executable, root, settings);
         require(compatibility::profile_settings().has_value(), "Embedded settings unavailable");
