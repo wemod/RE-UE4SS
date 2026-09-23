@@ -139,5 +139,6 @@ namespace RC
 
       public:
         auto deserialize(std::filesystem::path& file_name) -> void;
+        auto deserialize_contents(File::StringType contents) -> void;
     };
 } // namespace RC

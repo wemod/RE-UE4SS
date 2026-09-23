@@ -1,4 +1,5 @@
 #define NOMINMAX
+#include <Compatibility/Layout.hpp>
 
 #include <Windows.h>
 
@@ -25,6 +26,7 @@
 #include <Helpers/String.hpp>
 #include <Helpers/Time.hpp>
 #include <IniParser/Ini.hpp>
+#include <Compatibility/Embedded.hpp>
 #include <LuaLibrary.hpp>
 #include <LuaType/LuaCustomProperty.hpp>
 #include <LuaType/LuaUObject.hpp>
@@ -204,11 +206,13 @@ namespace RC
 
             try
             {
+                Compatibility::initialize(m_game_path_and_exe_name, m_working_directory, m_settings_path_and_file);
+                if (auto contents = Compatibility::profile_settings()) settings_manager.deserialize_contents(std::move(*contents));
                 settings_manager.deserialize(m_settings_path_and_file);
             }
             catch (std::exception& e)
             {
-                create_emergency_console_for_early_error(fmt::format(STR("The IniParser failed to parse: {}"), ensure_str(e.what())));
+                create_emergency_console_for_early_error(fmt::format(STR("Could not initialize settings or compatibility: {}"), ensure_str(e.what())));
                 return;
             }
 
@@ -347,6 +351,14 @@ namespace RC
             install_cpp_mods();
             start_cpp_mods(IsInitialStartup::Yes);
 
+            if (!Compatibility::selected_profile().empty())
+            {
+                Output::send(STR("Embedded compatibility profile: {} (external files take precedence)\n"), ensure_str(Compatibility::selected_profile()));
+            }
+            else
+            {
+                Output::send(STR("No embedded compatibility profile selected; using stock discovery and external overrides\n"));
+            }
             if (m_has_game_specific_config)
             {
                 Output::send(STR("Found configuration for game: {}\n"), ensure_str(m_working_directory.filename()));
@@ -560,14 +572,12 @@ namespace RC
     auto UE4SSProgram::load_unreal_offsets_from_file() -> void
     {
         std::filesystem::path file_path = m_working_directory / "MemberVariableLayout.ini";
-        if (std::filesystem::exists(file_path))
+        if (auto contents = Compatibility::read_override(file_path))
         {
-            auto file = File::open(file_path);
-            if (auto file_contents = file.read_all(); !file_contents.empty())
+            if (!contents->empty())
             {
                 Ini::Parser parser;
-                parser.parse(file_contents);
-                file.close();
+                parser.parse(*contents);
 
                 // The following code is auto-generated.
 #include <MacroSetter.hpp>
@@ -657,12 +667,10 @@ namespace RC
         TRY([&]() {
             ProfilerScopeNamed("loading virtual function offset overrides");
             static File::StringType virtual_function_offset_override_file{ensure_str((m_working_directory / STR("VTableLayout.ini")))};
-            if (std::filesystem::exists(virtual_function_offset_override_file))
+            if (auto contents = Compatibility::read_override(virtual_function_offset_override_file); contents && !contents->empty())
             {
-                auto file =
-                        File::open(virtual_function_offset_override_file, File::OpenFor::Reading, File::OverwriteExistingFile::No, File::CreateIfNonExistent::No);
                 Ini::Parser parser;
-                parser.parse(file);
+                parser.parse(*contents);
 
                 Output::send<Color::Blue>(STR("Getting ordered lists from ini file\n"));
 
@@ -672,7 +680,7 @@ namespace RC
 
                 auto retrieve_vtable_layout_from_ini = [&](const File::StringType& section_name, auto callable) -> uint32_t {
                     auto list = parser.get_ordered_list(section_name);
-                    uint32_t vtable_size = list.size() - 1;
+                    uint32_t vtable_size = list.size() ? list.size() - 1 : 0;
                     list.for_each([&](uint32_t index, File::StringType& item) {
                         callable(index, item);
                     });
@@ -729,9 +737,11 @@ namespace RC
                 });
 
                 Output::send<Color::Blue>(STR("FProperty\n"));
+                const bool property_uses_ffield = Compatibility::property_uses_ffield(
+                        Unreal::Version::Major, Unreal::Version::Minor, parser.get_ordered_list(STR("FField")).size() > 0);
                 uint32_t fproperty_size = retrieve_vtable_layout_from_ini(STR("FProperty"), [&](uint32_t index, File::StringType& item) {
                     uint32_t offset{};
-                    if (Unreal::Version::IsBelow(4, 25))
+                    if (!property_uses_ffield)
                     {
                         offset = calculate_virtual_function_offset(index, uobjectbase_size, uobjectbaseutility_size, uobject_size, ufield_size);
                     }
@@ -744,7 +754,7 @@ namespace RC
                 });
 
                 // If the engine version is <4.25 then the inheritance is different and we must take that into consideration.
-                if (Unreal::Version::IsBelow(4, 25))
+                if (!property_uses_ffield)
                 {
                     fproperty_size = uobjectbase_size + uobjectbaseutility_size + uobject_size + ufield_size + fproperty_size;
                 }
@@ -848,8 +858,6 @@ namespace RC
                     Output::send(STR("UDataTable::{} = 0x{:X}\n"), item, offset);
                     Unreal::UDataTable::VTableLayoutMap.emplace(item, offset);
                 });
-
-                file.close();
             }
         });
 

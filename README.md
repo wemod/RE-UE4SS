@@ -71,6 +71,7 @@ RE-UE4SS supports the following environment variables:
   - More compilers will hopefully be supported in the future.
 - [Rust toolchain >= 1.73.0](https://www.rust-lang.org/tools/install)
 - [CMake >= 3.22](https://cmake.org/download/)
+- Python 3 (for this fork's [embedded compatibility profiles](docs/embedded-compatibility.md)).
 - A build system: either [Ninja](https://ninja-build.org/) or MSVC (included with Visual Studio)
 
 ## Build instructions

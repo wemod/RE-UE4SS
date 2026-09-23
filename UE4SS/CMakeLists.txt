@@ -58,6 +58,24 @@ file(GLOB_RECURSE UE4SS_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/**.hpp")
 # Create the main library
 add_library(UE4SS SHARED ${UE4SS_SOURCES})
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/../cmake/EmbeddedCompatibility.cmake")
+target_sources(UE4SS PRIVATE "${UE4SS_COMPATIBILITY_SOURCE}")
+target_link_libraries(UE4SS PRIVATE bcrypt)
+
+option(UE4SS_BUILD_COMPATIBILITY_TESTS "Build embedded resource integration smoke test" OFF)
+if(UE4SS_BUILD_COMPATIBILITY_TESTS)
+    add_executable(compatibility_runtime_tests
+        "${CMAKE_CURRENT_SOURCE_DIR}/../tests/compatibility/runtime.cpp"
+        src/Compatibility/Catalog.cpp src/Compatibility/Embedded.cpp src/Compatibility/Fingerprint.cpp
+        "${UE4SS_COMPATIBILITY_SOURCE}")
+    target_include_directories(compatibility_runtime_tests PRIVATE include)
+    target_compile_features(compatibility_runtime_tests PRIVATE cxx_std_23)
+    target_compile_definitions(compatibility_runtime_tests PRIVATE
+        RC_FILE_BUILD_STATIC RC_HELPERS_BUILD_STATIC RC_INI_PARSER_BUILD_STATIC
+        RC_PARSER_BASE_BUILD_STATIC RC_LUA_MADE_SIMPLE_BUILD_STATIC RC_DYNAMIC_OUTPUT_BUILD_STATIC)
+    target_link_libraries(compatibility_runtime_tests PRIVATE File IniParser LuaMadeSimple bcrypt)
+endif()
+
 # Set C++23 standard 
 target_compile_features(UE4SS PUBLIC cxx_std_23)
 
