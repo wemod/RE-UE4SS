@@ -44,9 +44,13 @@ namespace RC
     auto SettingsManager::deserialize(std::filesystem::path& file_name) -> void
     {
         auto file = File::open(file_name, File::OpenFor::Reading, File::OverwriteExistingFile::No, File::CreateIfNonExistent::Yes);
+        deserialize_contents(file.read_all());
+    }
+
+    auto SettingsManager::deserialize_contents(File::StringType contents) -> void
+    {
         Ini::Parser parser;
-        parser.parse(file);
-        file.close();
+        parser.parse(contents);
 
         constexpr static File::CharType section_overrides[] = STR("Overrides");
         REGISTER_STRING_SETTING(Overrides.ModsFolderPath, section_overrides, ModsFolderPath)

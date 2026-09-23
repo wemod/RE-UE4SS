@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <Compatibility/Embedded.hpp>
 
 #include <UE4SSProgram.hpp>
 #include <DynamicOutput/DynamicOutput.hpp>
@@ -47,7 +48,19 @@ namespace RC
         lua.register_function("LoadExport", LuaLibrary::load_export);
         lua.register_function("loadexport", LuaLibrary::load_export);
 
-        lua.execute_file(script_file_path_and_name.string());
+        if (std::filesystem::exists(script_file_path_and_name))
+        {
+            lua.execute_file(script_file_path_and_name.string());
+        }
+        else if (auto source = Compatibility::embedded_override(script_file_path_and_name))
+        {
+            Output::send(STR("Using embedded signature: {}\n"), ensure_str(script_file_path_and_name.filename()));
+            lua.execute_string(*source);
+        }
+        else
+        {
+            throw std::runtime_error{"Signature script is missing"};
+        }
 
         if (lua.get_stack_size() > 0)
         {
@@ -125,7 +138,7 @@ namespace RC
     auto setup_lua_scan_overrides(std::filesystem::path& working_directory, Unreal::UnrealInitializer::Config& config) -> void
     {
         auto lua_guobjectarray_scan_script = working_directory / "UE4SS_Signatures/GUObjectArray.lua";
-        if (std::filesystem::exists(lua_guobjectarray_scan_script))
+        if (Compatibility::has_override(lua_guobjectarray_scan_script))
         {
             config.ScanOverrides.guobjectarray = [lua_guobjectarray_scan_script](std::vector<SignatureContainer>& signature_containers,
                                                                                  Unreal::Signatures::ScanResult& scan_result) mutable {
@@ -147,7 +160,7 @@ namespace RC
         }
 
         auto lua_fts_scan_script = working_directory / "UE4SS_Signatures/FName_ToString.lua";
-        if (std::filesystem::exists(lua_fts_scan_script))
+        if (Compatibility::has_override(lua_fts_scan_script))
         {
             config.ScanOverrides.fname_to_string = [lua_fts_scan_script](std::vector<SignatureContainer>& signature_containers,
                                                                          Unreal::Signatures::ScanResult& scan_result) mutable {
@@ -170,7 +183,7 @@ namespace RC
         }
 
         auto lua_fnc_scan_script = working_directory / "UE4SS_Signatures/FName_Constructor.lua";
-        if (std::filesystem::exists(lua_fnc_scan_script))
+        if (Compatibility::has_override(lua_fnc_scan_script))
         {
             config.ScanOverrides.fname_constructor = [lua_fnc_scan_script](std::vector<SignatureContainer>& signature_containers,
                                                                            Unreal::Signatures::ScanResult& scan_result) mutable {
@@ -238,8 +251,11 @@ namespace RC
         // exist.
         auto lua_ffree_scan_script_new = working_directory / "UE4SS_Signatures/GMalloc.lua";
         auto lua_ffree_scan_script_compat = working_directory / "UE4SS_Signatures/FMemory_Free.lua";
-        auto lua_ffree_scan_script = std::filesystem::exists(lua_ffree_scan_script_new) ? lua_ffree_scan_script_new : lua_ffree_scan_script_compat;
-        if (std::filesystem::exists(lua_ffree_scan_script))
+        auto lua_ffree_scan_script = std::filesystem::exists(lua_ffree_scan_script_new) ? lua_ffree_scan_script_new
+                                  : std::filesystem::exists(lua_ffree_scan_script_compat) ? lua_ffree_scan_script_compat
+                                  : Compatibility::has_override(lua_ffree_scan_script_new) ? lua_ffree_scan_script_new
+                                  : lua_ffree_scan_script_compat;
+        if (Compatibility::has_override(lua_ffree_scan_script))
         {
             config.ScanOverrides.fmemory_free = [lua_ffree_scan_script](std::vector<SignatureContainer>& signature_containers,
                                                                         Unreal::Signatures::ScanResult& scan_result) mutable {
@@ -261,7 +277,7 @@ namespace RC
         }
 
         auto lua_sco_scan_script = working_directory / "UE4SS_Signatures/StaticConstructObject.lua";
-        if (std::filesystem::exists(lua_sco_scan_script))
+        if (Compatibility::has_override(lua_sco_scan_script))
         {
             config.ScanOverrides.static_construct_object = [lua_sco_scan_script](std::vector<SignatureContainer>& signature_containers,
                                                                                  Unreal::Signatures::ScanResult& scan_result) mutable {
@@ -286,7 +302,7 @@ namespace RC
         }
 
         auto lua_guhashtables_scan_script = working_directory / "UE4SS_Signatures/GUObjectHashTables.lua";
-        if (std::filesystem::exists(lua_guhashtables_scan_script))
+        if (Compatibility::has_override(lua_guhashtables_scan_script))
         {
             config.ScanOverrides.fuobject_hash_tables_get = [lua_guhashtables_scan_script](std::vector<SignatureContainer>& signature_containers,
                                                                                            Unreal::Signatures::ScanResult& scan_result) mutable {
@@ -309,7 +325,7 @@ namespace RC
         }
 
         auto lua_gnatives_scan_script = working_directory / "UE4SS_Signatures/GNatives.lua";
-        if (std::filesystem::exists(lua_gnatives_scan_script))
+        if (Compatibility::has_override(lua_gnatives_scan_script))
         {
             config.ScanOverrides.gnatives = [lua_gnatives_scan_script](std::vector<SignatureContainer>& signature_containers,
                                                                        Unreal::Signatures::ScanResult& scan_result) mutable {
@@ -331,7 +347,7 @@ namespace RC
         }
 
         auto lua_consolemanager_scan_script = working_directory / "UE4SS_Signatures/ConsoleManager.lua";
-        if (std::filesystem::exists(lua_consolemanager_scan_script))
+        if (Compatibility::has_override(lua_consolemanager_scan_script))
         {
             config.ScanOverrides.console_manager_singleton = [lua_consolemanager_scan_script](std::vector<SignatureContainer>& signature_containers,
                                                                                               Unreal::Signatures::ScanResult& scan_result) mutable {
@@ -354,7 +370,7 @@ namespace RC
         }
 
         auto lua_process_local_script_function_scan_script = working_directory / "UE4SS_Signatures/ProcessLocalScriptFunction.lua";
-        if (std::filesystem::exists(lua_process_local_script_function_scan_script))
+        if (Compatibility::has_override(lua_process_local_script_function_scan_script))
         {
             config.ScanOverrides.process_local_script_function =
                     [lua_process_local_script_function_scan_script](std::vector<SignatureContainer>& signature_containers,
@@ -380,7 +396,7 @@ namespace RC
         }
 
         auto lua_process_internal_scan_script = working_directory / "UE4SS_Signatures/ProcessInternal.lua";
-        if (std::filesystem::exists(lua_process_internal_scan_script))
+        if (Compatibility::has_override(lua_process_internal_scan_script))
         {
             config.ScanOverrides.process_internal = [lua_process_internal_scan_script](std::vector<SignatureContainer>& signature_containers,
                                                                                        Unreal::Signatures::ScanResult& scan_result) mutable {
@@ -403,7 +419,7 @@ namespace RC
         }
 
         auto lua_call_function_by_name_with_arguments_scan_script = working_directory / "UE4SS_Signatures/CallFunctionByNameWithArguments.lua";
-        if (std::filesystem::exists(lua_call_function_by_name_with_arguments_scan_script))
+        if (Compatibility::has_override(lua_call_function_by_name_with_arguments_scan_script))
         {
             config.ScanOverrides.call_function_by_name_with_arguments =
                     [lua_call_function_by_name_with_arguments_scan_script](std::vector<SignatureContainer>& signature_containers,
@@ -429,7 +445,7 @@ namespace RC
         }
 
         auto lua_gameengine_tick_scan_script = working_directory / "UE4SS_Signatures/GameEngineTick.lua";
-        if (std::filesystem::exists(lua_gameengine_tick_scan_script))
+        if (Compatibility::has_override(lua_gameengine_tick_scan_script))
         {
             config.ScanOverrides.gameengine_tick =
                     [lua_gameengine_tick_scan_script](std::vector<SignatureContainer>& signature_containers,
